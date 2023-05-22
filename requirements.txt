@@ -1,0 +1,16 @@
+math
+transformers 
+datasets 
+flair
+tqdm
+torch
+abcplus
+numpy
+scipy>=1.7
+typing
+sklearn
+matplotlib
+IPython
+nltk
+
+
