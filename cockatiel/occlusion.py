@@ -8,7 +8,7 @@ import nltk
 import sklearn.decomposition
 from nltk.tokenize import word_tokenize
 
-from .occlusion_tools import calculate_u_values, calculate_importance, extract_clauses
+from .utils import extract_clauses, calculate_u_values, calculate_importance
 
 from typing import List, Callable, Optional, Union, Tuple
 

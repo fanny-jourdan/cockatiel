@@ -5,7 +5,7 @@ from math import ceil
 
 from .sampling import ScipySobolSequence, concept_perturbation
 from .sobol import JansenEstimator
-from .model_fct import tokenize
+from . import tokenize
 
 from typing import Callable, List
 

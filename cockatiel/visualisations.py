@@ -7,7 +7,7 @@ from IPython.core.display import display, HTML
 import nltk
 from nltk.tokenize import word_tokenize
 
-from .occlusion_tools import extract_clauses
+from .utils import extract_clauses
 
 from typing import List, Optional
 
