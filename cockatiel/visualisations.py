@@ -1,3 +1,6 @@
+"""
+A module for generating plots for the explanations on notebooks.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from IPython.core.display import display, HTML
@@ -14,7 +17,14 @@ plt.style.use('seaborn')
 
 def print_legend(colors, label_to_criterion):
     """
-    colors and label_to_criterion are two dictionaries
+    Prints the legend for the plot in different colors.
+
+    Parameters
+    ----------
+    colors
+        A dictionary with the colors for each label.
+    label_to_criterion
+        A dictionary with the text to put on each label.
     """
     html = []
     for label_id in label_to_criterion.keys():
@@ -31,11 +41,20 @@ def viz_concepts(
         extract_fct: str = "clause"
 ):
     """
-    text, string
-    explanation, np.array, output of the occlusion function
-    ignore_words, list, same as occlusion function
-    extract_fct, "word", "clause" or "sentence", same as occlusion function
-    colors, dictionary, same as print_legend
+    Generates the visualization for COCKATIEL's explanations.
+
+    Parameters
+    ----------
+    text
+        A string with the text we wish to explain.
+    explanation
+        An array that corresponds to the output of the occlusion function.
+    ignore_words
+        A list of strings to ignore when applying occlusion.
+    extract_fct
+        A string indicating whether at which level we wish to explain: "word", "clause" or "sentence".
+    colors
+        A dictionary with the colors for each label
     """
     try:
         text = text.decode('utf-8')

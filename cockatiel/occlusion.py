@@ -1,23 +1,68 @@
+"""
+This module implements the local part of COCKATIEL: occlusion. This allows us to estimate the presence of
+concepts in parts of the input text.
+"""
+
 import numpy as np
 import nltk
+import sklearn.decomposition
 from nltk.tokenize import word_tokenize
 
 from .occlusion_tools import calculate_u_values, calculate_importance, extract_clauses
 
+from typing import List, Callable, Optional, Union, Tuple
+
 nltk.download('punkt')
 
 
-def occlusion_concepts(sentence, model, tokenizer, factorization, l_concept_id, ignore_words = [], two_labels = True, extract_fct = "clause", device = 'cuda'):
+def occlusion_concepts(
+        sentence: str,
+        model,
+        tokenizer: Callable,
+        factorization: Union[sklearn.decomposition.NMF, Tuple[sklearn.decomposition.NMF, sklearn.decomposition.NMF]],
+        l_concept_id: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]],
+        ignore_words: Optional[List[str]] = None,
+        two_labels: bool = True,
+        extract_fct: str = "clause",
+        device='cuda'
+) -> np.ndarray:
     """
-    sentence, a string
-    model, the model explained by COCKATIEL
-    tokenizer, the tokenizer associated at the model
-    factorisation, a sklearn.decomposition._nmf.NMF if two_labels = False, a list of two sklearn.decomposition._nmf.NMF if two_labels = True
-    l_concept_id, a np.ndarray if two_labels = False, a list of two np.ndarray if two_labels = True
-    ignore_words, a list of words or characters on which we do not want to apply occlusion
-    two_labels, a boolean, if two_labels = false, we look only one class, else, we look the both class of IMDB task
-    extract_fct in ["word", "clause", "sentence"], the type of excerpts chosen for occlusion
-    device : cuda or cpu, the device of the model
+    Generates explanations for the input sentence using COCKATIEL.
+
+    If two_labels is False, it computes the presence of the concepts of interest (in l_concept_id) using the
+    NMF object in factorization.
+    If two_labels is True, it computes the presence of the concepts of interest in the tuple of l_concept_id using
+    the tuple of NMF objects in factorization (to do so for both classes in imdb-reviews task).
+
+    The granularity of the explanations is set with extract_fct.
+
+    Parameters
+    ----------
+    sentence
+        The string (sentence) we wish to explain using COCKATIEL.
+    model
+        The model under study.
+    tokenizer
+        A Callable that transforms strings into tokens capable of being ingested by the model.
+    factorization
+        Either the NMF object to transform activations into the concept base, or a tuple with an object for each of
+        the two classes (for the imdb-reviews task) if two_labels is True.
+    l_concept_id
+        Either a list of concepts of interest (for a given task) or a tuple with two lists, one for each class (if
+        two_labels is True).
+    ignore_words
+        A list of strings to ignore when applying occlusion.
+    two_labels
+        A bool indicating whether we wish to explain only one class or both (for imdb-reviews task).
+    extract_fct
+        A string indicating whether at which level we wish to explain: "word", "clause" or "sentence".
+    device
+        The device on which tensors are stored ("cpu" or "cuda").
+
+    Returns
+    -------
+    l_importances
+        An array with the presence of each concept in the input sentence.
     """
     sentence = str(sentence)
 

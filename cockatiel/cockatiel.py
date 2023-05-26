@@ -1,26 +1,77 @@
 import numpy as np
 import torch
-from typing import Dict, Tuple
 from sklearn.decomposition import NMF
 from math import ceil
+
 from .sampling import ScipySobolSequence, concept_perturbation
 from .sobol import JansenEstimator
 from .model_fct import tokenize
 
+from typing import Callable, List
+
 
 class COCKATIEL:
+    """
+    A class implementing COCKATIEL, the concept based explainability method for NLP introduced
+    in https://arxiv.org/abs/2305.06754
+
+    Parameters
+    ----------
+    model
+        The Torch hugging-face model that we wish to explain. It MUST have a non-negative layer on
+        which to extract the concepts.
+    tokenizer
+        A callable object to transform strings into inputs for the model.
+    components
+        An integer for the amount of concepts we wish to discover in the activation space.
+    batch_size
+        The batch size for all the operations that use the model
+    device
+        The type of device on which to place the torch tensors
+    """
     sobol_nb_design = 32
 
-    def __init__(self, model, tokenizer, components: int = 25, batch_size: int = 256, device: str = 'cuda'):
+    def __init__(self, model, tokenizer: Callable, components: int = 25, batch_size: int = 256, device: str = 'cuda'):
         self.model = model
         self.tokenizer = tokenizer
         self.components = components
         self.batch_size = batch_size
         self.device = device
 
-    def extract_concepts(self, cropped_dataset, dataset, class_id: int, limit_sobol: int = 1_000_000):
-        segments = []
-        segments_activations = None
+    def extract_concepts(
+            self,
+            cropped_dataset: List[str],
+            dataset: List[str],
+            class_id: int,
+            limit_sobol: int = 1_000_000
+    ):
+        """
+        Extracts the concepts following the object's parameters.
+
+        Parameters
+        ----------
+        cropped_dataset
+            The dataset containing the excerpts used to discover the concepts.
+        dataset
+            A sample of the dataset (with whole inputs) on which to compute the Sobol importance.
+        class_id
+            An integer for the class we wish to explain.
+        limit_sobol
+            The maximum amount of masks to use for estimating Sobol indices.
+
+        Returns
+        -------
+        excerpts
+            The excerpts used to learn the concepts.
+        u_excerpts
+            The coefficients in the learned concept base for the excerpts.
+        factorization
+            The object to transform activations using the concept base.
+        global_importance
+            An array with the global importance of each concept (Sobol indices).
+        """
+        excerpts = []
+        excerpts_activations = None
 
         with torch.no_grad():
             for batch_id in range(ceil(len(cropped_dataset) / self.batch_size)):
@@ -32,10 +83,10 @@ class COCKATIEL:
 
                 batch_activations = self.model.features(**batch_tokenized)
 
-                segments_activations = batch_activations if segments_activations is None \
-                    else torch.cat([segments_activations, batch_activations], 0)
-                segments = batch_sentences if segments is None \
-                    else segments + batch_sentences
+                excerpts_activations = batch_activations if excerpts_activations is None \
+                    else torch.cat([excerpts_activations, batch_activations], 0)
+                excerpts = batch_sentences if excerpts is None \
+                    else excerpts + batch_sentences
 
         points_activations = None
         with torch.no_grad():
@@ -48,7 +99,7 @@ class COCKATIEL:
                     [points_activations, activations])
 
         # applying GAP(.) on the activation and ensure positivity if needed
-        segments_activations = self._preprocess(segments_activations)
+        excerpts_activations = self._preprocess(excerpts_activations)
         points_activations = self._preprocess(points_activations)
 
         # using the activations, we will now use the matrix factorization to
@@ -56,8 +107,7 @@ class COCKATIEL:
         # segments and the points
         factorization = NMF(n_components=self.components)
 
-        u_segments = factorization.fit_transform(segments_activations)
-        u_points = factorization.transform(points_activations)
+        u_excerpts = factorization.fit_transform(excerpts_activations)
 
         if self.device == 'cuda':
             W = torch.Tensor(factorization.components_).float().cuda()
@@ -65,16 +115,36 @@ class COCKATIEL:
             W = torch.Tensor(factorization.components_).float()
 
         # we don't need segments activations anymore, the concept bank is trained
-        del segments_activations
+        del excerpts_activations
 
         # using the concept bank and the points, we will now evaluate the importance of
         # each concept for each points to get a global importance score for each
         # concept in the concept bank
         global_importance = self._sobol_importance(cropped_dataset, points_activations[:limit_sobol], class_id, W)
 
-        return segments, u_segments, factorization, global_importance
+        return excerpts, u_excerpts, factorization, global_importance
 
-    def _sobol_importance(self, cropped_dataset, activations, class_id, W):
+    def _sobol_importance(self, cropped_dataset, activations: torch.Tensor, class_id: int, W: torch.Tensor):
+        """
+        Computes the Sobol indices using the dataset containing the excerpts and the activations from the
+        dataset (whole inputs) for the target class, and for a fixed (already learned) concept base W.
+
+        Parameters
+        ----------
+        cropped_dataset
+            The activations of the dataset containing the excerpts used to discover the concepts.
+        activations
+            The activations for inputs from the original dataset.
+        class_id
+            An integer for the class we wish to explain.
+        W
+            The (already learned) concept base.
+
+        Returns
+        -------
+        global_importance
+            An array with the Sobol indices
+        """
         masks = ScipySobolSequence()(self.components, nb_design=self.sobol_nb_design)
         estimator = JansenEstimator()
 
@@ -111,7 +181,21 @@ class COCKATIEL:
 
         return global_importance
 
-    def _preprocess(self, activations):
+    def _preprocess(self, activations: torch.Tensor):
+        """
+        Preprocesses the activations to make sure that they're the right shape for being input to the
+        NMF algorithm later.
+
+        Parameters
+        ----------
+        activations
+            The (non-negative) activations from the model under study.
+
+        Returns
+        -------
+        activations
+            The preprocessed activations, ready for COCKATIEL.
+        """
         if len(activations.shape) == 4:
             activations = torch.mean(activations, (1, 2))
 

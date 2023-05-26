@@ -1,8 +1,13 @@
 import torch
 from math import ceil
 
+from typing import Callable, List, Tuple
+
 
 def batcher(elements, batch_size: int):
+    """
+    An iterable to create batches from a list of elements
+    """
     nb_batchs = ceil(len(elements) / batch_size)
 
     for batch_i in range(nb_batchs):
@@ -13,12 +18,26 @@ def batcher(elements, batch_size: int):
         yield batch
 
 
-def tokenize(samples, tokenizer, device='cuda'):
-    x = tokenizer([s for s in samples], padding="max_length", max_length = 512, truncation=True, return_tensors='pt').to(device)
+def tokenize(samples: List[str], tokenizer: Callable, device='cuda'):
+    """
+    A function to transform a list of strings into tokens to be consumed by the transformer model.
+    """
+    x = tokenizer(
+        [s for s in samples],
+        padding="max_length",
+        max_length=512,
+        truncation=True,
+        return_tensors='pt'
+    ).to(device)
+
     return x
 
 
-def preprocess(samples, tokenizer, device='cuda'):
+def preprocess(samples: List[str, str], tokenizer: Callable, device='cuda'):
+    """
+    A basic pre-processing function to transform the format from the imdb dataset to
+    something easier to work with.
+    """
     x, y = samples[:, 0], samples[:, 1]
     x = tokenize(x, tokenizer, device)
     if device == 'cuda':
@@ -28,7 +47,10 @@ def preprocess(samples, tokenizer, device='cuda'):
     return x, y
 
 
-def batch_predict(model, tokenizer, inputs, batch_size: int = 64, device='cuda'):
+def batch_predict(model, tokenizer: Callable, inputs: List[str, str], batch_size: int = 64, device='cuda'):
+    """
+    A function to pre-process and predict using the transformer model in batches.
+    """
     predictions = None
     labels = None
 
