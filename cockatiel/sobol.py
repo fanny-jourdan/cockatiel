@@ -1,9 +1,10 @@
-from abc import ABC, abstractmethod
-import numpy as np
-
 """
 Sobol' total order estimators module
 """
+
+from abc import ABC, abstractmethod
+import numpy as np
+
 
 class SobolEstimator(ABC):
     """

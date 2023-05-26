@@ -11,6 +11,7 @@ matrix via "features" and from which we can predict the outputs via "end_model".
 With this version, we can of course predict the outputs directly with the input as in the classic version of RoBERTa.
 '''
 
+
 class CustomRobertaClassificationHead(nn.Module):
 
     def __init__(self, config):
@@ -22,7 +23,7 @@ class CustomRobertaClassificationHead(nn.Module):
         self.dropout = nn.Dropout(classifier_dropout)
         self.out_proj = nn.Linear(config.hidden_size, 2)
 
-    def forward(self, features, **kwargs):
+    def forward(self, features):
         x = features
         x = self.dropout(x)
         x = self.dense(x)
@@ -31,7 +32,7 @@ class CustomRobertaClassificationHead(nn.Module):
         x = self.out_proj(x)
         return x
     
-    def features(self, x, **kwargs):  
+    def features(self, x):
         x = self.dropout(x)
         x = self.dense(x)
         x = torch.relu(x)

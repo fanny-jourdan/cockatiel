@@ -1,11 +1,11 @@
+"""
+Sampling methods for replicated designs
+"""
+
 from abc import ABC, abstractmethod
 import numpy as np
 import scipy
 
-
-"""
-Sampling methods for replicated designs
-"""
 
 class Sampler(ABC):
     """
@@ -49,7 +49,7 @@ class ScipySampler(Sampler):
 
     def __init__(self):
         try:
-            self.qmc = scipy.stats.qmc # pylint: disable=E1101
+            self.qmc = scipy.stats.qmc
         except AttributeError as err:
             raise ModuleNotFoundError("COCKATIEL need scipy>=1.7 to use this sampling.") from err
 
@@ -64,48 +64,44 @@ class ScipySobolSequence(ScipySampler):
     """
 
     def __call__(self, dimension, nb_design):
-        sampler = self.qmc.Sobol(dimension*2, scramble=False)
+        sampler = self.qmc.Sobol(dimension * 2, scramble=False)
         sampling_ab = sampler.random(nb_design).astype(np.float32)
         sampling_a, sampling_b = sampling_ab[:, :dimension], sampling_ab[:, dimension:]
         replicated_c = self.build_replicated_design(sampling_a, sampling_b)
 
         return np.concatenate([sampling_a, sampling_b, replicated_c], 0)
-    
 
 
 def concept_perturbation(model, activation, masks, class_id, W):
-  """
-  Apply perturbation on the concept before reconstruction and get the perturbated outputs.
-  For NMF we recall that A = U @ W 
+    """
+    Apply perturbation on the concept before reconstruction and get the perturbated outputs.
+    For NMF we recall that A = U @ W
 
-  Parameters
-  ----------
-  end_model
+    Parameters
+    ----------
+    model
       Model that map the concept layer to the output (h_l->k in the paper)
-  activation
+    activation
       Specific activation to apply perturbation on.
-  masks
+    masks
       Arrays of masks, each of them being a concept perturbation.
-  class_id
+    class_id
       Id the class to test.
-  W
+    W
       Concept bank extracted using NMF.
-    
-  Returns
-  -------
-  y
+
+    Returns
+    -------
+    y
       Outputs of the perturbated points.
-  """
+    """
+    perturbation = masks @ W
 
-  perturbation = masks @ W
+    if len(activation.shape) == 3:
+        perturbation = perturbation[:, None, None, :]
 
-  if len(activation.shape) == 3:
-    perturbation = perturbation[:, None, None, :]
-  
-  activation = activation[None, :]
-  
-  perturbated_activations = activation + perturbation * activation
+    activation = activation[None, :]
+    perturbated_activations = activation + perturbation * activation
+    y = model.end_model(perturbated_activations)[:, class_id]
 
-  y = model.end_model(perturbated_activations)[:, class_id]
-  
-  return y
+    return y
