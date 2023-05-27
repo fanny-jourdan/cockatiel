@@ -5,7 +5,7 @@ from math import ceil
 
 from .sampling import ScipySobolSequence, concept_perturbation
 from .sobol import JansenEstimator
-from . import tokenize
+from .utils import tokenize
 
 from typing import Callable, List
 
@@ -201,7 +201,7 @@ class COCKATIEL:
 
         if torch.min(activations) < 0:
             raise ValueError("Please choose a layer with positive activations.")
-        if self.device == 'cuda':
+        if self.device[:4] == 'cuda':  # machine might have multiple GPUs
             activations = activations.cpu()
 
         return activations.numpy().astype(np.float32)
