@@ -31,19 +31,28 @@ class COCKATIEL:
     """
     sobol_nb_design = 32
 
-    def __init__(self, model, tokenizer: Callable, components: int = 25, batch_size: int = 256, device: str = 'cuda'):
+    def __init__(
+            self,
+            model,
+            tokenizer: Callable,
+            components: int = 25,
+            batch_size: int = 256,
+            device: str = 'cuda',
+            nmf_max_iter: int = 1000
+    ):
         self.model = model
         self.tokenizer = tokenizer
         self.components = components
         self.batch_size = batch_size
         self.device = device
+        self.max_iter = nmf_max_iter
 
     def extract_concepts(
             self,
             cropped_dataset: List[str],
             dataset: List[str],
             class_id: int,
-            limit_sobol: int = 1_000_000
+            limit_sobol: int = 1000
     ):
         """
         Extracts the concepts following the object's parameters.
@@ -105,7 +114,7 @@ class COCKATIEL:
         # using the activations, we will now use the matrix factorization to
         # find the concept bank (W) and the concept representation (U) of the
         # segments and the points
-        factorization = NMF(n_components=self.components)
+        factorization = NMF(n_components=self.components, max_iter=self.max_iter)
 
         u_excerpts = factorization.fit_transform(excerpts_activations)
         W = torch.Tensor(factorization.components_).float().to(self.device)
