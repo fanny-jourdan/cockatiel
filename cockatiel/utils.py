@@ -48,10 +48,7 @@ def preprocess(samples: List[Tuple[str, str]], tokenizer: Callable, device='cuda
     """
     x, y = samples[:, 0], samples[:, 1]
     x = tokenize(x, tokenizer, device)
-    if device == 'cuda':
-        y = torch.Tensor(y == 'positive').int().cuda()
-    else:
-        y = torch.Tensor(y == 'positive').int()
+    y = torch.Tensor(y == 'positive').int().to(device)
     return x, y
 
 
@@ -141,9 +138,7 @@ def calculate_u_values(sentence, cropped_sentences, model, tokenizer, factorizat
                 perturbated_review = separate.join(np.delete(cropped_sentences, crop_id))
             else:
                 continue
-            tokenized_perturbated_review = tokenizer(perturbated_review, truncation=True, padding=True, return_tensors="pt")
-            if device == 'cuda':
-                tokenized_perturbated_review = tokenized_perturbated_review.to('cuda')
+            tokenized_perturbated_review = tokenizer(perturbated_review, truncation=True, padding=True, return_tensors="pt").to(device)
             activation = model.features(**tokenized_perturbated_review)
             activations = activation if activations is None else torch.cat([activations, activation])
 

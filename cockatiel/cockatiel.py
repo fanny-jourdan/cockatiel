@@ -108,11 +108,7 @@ class COCKATIEL:
         factorization = NMF(n_components=self.components)
 
         u_excerpts = factorization.fit_transform(excerpts_activations)
-
-        if self.device == 'cuda':
-            W = torch.Tensor(factorization.components_).float().cuda()
-        else:
-            W = torch.Tensor(factorization.components_).float()
+        W = torch.Tensor(factorization.components_).float().to(self.device)
 
         # we don't need segments activations anymore, the concept bank is trained
         del excerpts_activations
@@ -148,31 +144,23 @@ class COCKATIEL:
         masks = ScipySobolSequence()(self.components, nb_design=self.sobol_nb_design)
         estimator = JansenEstimator()
 
-        if self.device == 'cuda':
-            W = torch.Tensor(W).float().cuda()
-        else:
-            W = torch.Tensor(W).float()
+        if not isinstance(W, torch.Tensor):
+            W = torch.Tensor(W).float().to(self.device)
 
         importances = []
         for act in activations:
-            act = torch.Tensor(act).float()
-            if self.device == 'cuda':
-                act = act.cuda()
+            act = torch.Tensor(act).float().to(self.device)
 
             y_pred = None
             for batch_id in range(ceil(len(cropped_dataset) / self.batch_size)):
                 batch_start = batch_id * self.batch_size
                 batch_end = batch_start + self.batch_size
-
-                if self.device == 'cuda':
-                    batch_masks = torch.Tensor(masks[batch_start:batch_end]).float().cuda()
-                else:
-                    batch_masks = torch.Tensor(masks[batch_start:batch_end]).float()
+                batch_masks = torch.Tensor(masks[batch_start:batch_end]).float().to(self.device)
 
                 y_batch = concept_perturbation(self.model, act, batch_masks, class_id, W)
                 y_pred = y_batch if y_pred is None else torch.cat([y_pred, y_batch], 0)
 
-            if self.device == 'cuda':
+            if self.device == 'cuda' or self.device == torch.device('cuda'):
                 y_pred = y_pred.cpu()
             stis = estimator(masks, y_pred.numpy(), self.sobol_nb_design)
             importances.append(stis)
@@ -201,7 +189,7 @@ class COCKATIEL:
 
         if torch.min(activations) < 0:
             raise ValueError("Please choose a layer with positive activations.")
-        if self.device[:4] == 'cuda':  # machine might have multiple GPUs
+        if self.device == 'cuda' or self.device == torch.device('cuda'):
             activations = activations.cpu()
 
         return activations.numpy().astype(np.float32)
