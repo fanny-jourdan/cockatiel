@@ -5,7 +5,7 @@ import numpy as np
 from flair.models import SequenceTagger
 from flair.data import Sentence
 
-from typing import List, Callable, Union, Optional
+from typing import List, Callable, Union, Optional, Tuple
 
 
 # load tagger
@@ -41,7 +41,7 @@ def tokenize(samples: List[str], tokenizer: Callable, device='cuda'):
     return x
 
 
-def preprocess(samples: List[str, str], tokenizer: Callable, device='cuda'):
+def preprocess(samples: List[Tuple[str, str]], tokenizer: Callable, device='cuda'):
     """
     A basic pre-processing function to transform the format from the imdb dataset to
     something easier to work with.
@@ -55,7 +55,7 @@ def preprocess(samples: List[str, str], tokenizer: Callable, device='cuda'):
     return x, y
 
 
-def batch_predict(model, tokenizer: Callable, inputs: List[str, str], batch_size: int = 64, device='cuda'):
+def batch_predict(model, tokenizer: Callable, inputs: List[Tuple[str, str]], batch_size: int = 64, device='cuda'):
     """
     A function to pre-process and predict using the transformer model in batches.
     """
